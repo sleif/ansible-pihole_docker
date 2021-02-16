@@ -1,0 +1,14 @@
+---
+container_storage_dir_base: '/srv'
+# pihole_external_web_port: '80:80/tcp'
+pihole_password: ""
+pihole_password_encrypted: ""
+
+pihole_rev_server: False
+pihole_rev_server_target: 192.168.178.1
+pihole_rev_server_domain: fritz.box
+pihole_rev_server_cidr: "192.168.178.0/24"
+pihole_whitelist_entries: []
+
+# DOCKER_NETWORKS: []
+#   - name: "{{ DOCKER_NETWORK_NAME }}"
