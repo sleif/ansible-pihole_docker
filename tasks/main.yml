@@ -1,0 +1,115 @@
+---
+
+# docker exec -ti pihole /bin/sh
+# sudo pihole -a -p
+
+- name: open ports for dns
+  firewalld:
+    service: dns
+    immediate: true
+    permanent: true
+    state: enabled
+  when:
+    - ansible_os_family == "RedHat"
+  tags: firewall
+
+- name: old local.list needs to be removed before container start
+  file:
+    dest: "{{ container_storage_dir_base }}/pihole/pihole/local.list"
+    state: absent
+
+# TODO prefill /srv/pihole/dnsmasq.d/99-pihole.conf with further server entries (as in 01-pihole.conf)
+- name: disable systemd-resolved
+  service:
+    name: systemd-resolved
+    state: stopped
+    enabled: no
+  ignore_errors: true
+
+- name: enable fallback nameserver in resolv.conf
+  lineinfile:
+    path: /etc/resolv.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^nameserver 1\.1\.1\.1', line: 'nameserver 1.1.1.1' }
+
+- name: PiHole-Container starten
+  docker_container:
+    name: pihole
+    image: pihole/pihole:latest
+    state: started
+    restart_policy: always
+    recreate: yes
+    restart: yes
+    force_kill: yes
+    networks: "{{ DOCKER_NETWORKS | default(omit) }}"
+    networks_cli_compatible: yes
+    pull: yes
+    published_ports:
+      - '53:53/tcp'
+      - '53:53/udp'
+      - '{{ pihole_external_web_port | default(omit) }}'
+    volumes:
+      - "{{ container_storage_dir_base }}/pihole/pihole/:/etc/pihole/:Z"
+      - "{{ container_storage_dir_base }}/pihole/dnsmasq.d/:/etc/dnsmasq.d/:Z"
+    security_opts: label:type:docker_t
+    capabilities:
+      - NET_ADMIN
+    env:
+      VIRTUAL_HOST: "{{ VIRTUAL_HOST }}"
+      LETSENCRYPT_HOST: "{{ VIRTUAL_HOST }}"
+      LETSENCRYPT_EMAIL: "{{ LETSENCRYPT_EMAIL }}"
+      ServerIP: "{{ ansible_default_ipv4.address }}"
+      WEBPASSWORD: random
+      PIHOLE_DNS_: "1.1.1.1;1.0.0.1"
+  tags:
+    - container
+
+- name: waiting for pihole startup
+  pause:
+    seconds: 40
+  tags:
+    - container
+
+- name: pihole | set pihole password
+  command: docker exec -ti pihole /usr/local/bin/pihole -a -p "{{ pihole_password }}"
+
+- name: pihole configuration file
+  lineinfile:
+    path: "{{ container_storage_dir_base }}/pihole/pihole/setupVars.conf"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    # - { regexp: '^WEBPASSWORD.*', line: 'WEBPASSWORD={{ pihole_password_encrypted }}' }
+    - { regexp: '^.*REV_SERVER=', line: 'REV_SERVER={{ pihole_rev_server | lower }}' }
+
+- name: pihole configuration file - cond forward
+  lineinfile:
+    path: "{{ container_storage_dir_base }}/pihole/pihole/setupVars.conf"
+    state: "{% if pihole_rev_server %}present{% else %}absent{% endif %}"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^.*REV_SERVER_TARGET=', line: 'REV_SERVER_TARGET={{ pihole_rev_server_target }}' }
+    - { regexp: '^.*REV_SERVER_DOMAIN=', line: 'REV_SERVER_DOMAIN={{ pihole_rev_server_domain }}' }
+    - { regexp: '^.*REV_SERVER_CIDR=',   line: 'REV_SERVER_CIDR={{ pihole_rev_server_cidr }}' }
+  when: pihole_rev_server | bool
+
+- name: pihole whitelist file
+  lineinfile:
+    path: "{{ container_storage_dir_base }}/pihole/pihole/whitelist.txt"
+    line: "{{ item }}"
+    create: yes
+    mode: '0755'
+  with_items:
+     - "{{ pihole_whitelist_entries }}"
+
+- name: disable fallback nameserver in resolv.conf
+  lineinfile:
+    path: /etc/resolv.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: absent
+  with_items:
+    - { regexp: '^nameserver 1\.1\.1\.1', line: 'nameserver 1.1.1.1' }
