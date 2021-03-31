@@ -4,7 +4,7 @@
 # sudo pihole -a -p
 
 - name: open ports for dns
-  firewalld:
+  ansible.posix.firewalld:
     service: dns
     immediate: true
     permanent: true
@@ -14,20 +14,20 @@
   tags: firewall
 
 - name: old local.list needs to be removed before container start
-  file:
+  ansible.builtin.file:
     dest: "{{ container_storage_dir_base }}/pihole/pihole/local.list"
     state: absent
 
 # TODO prefill /srv/pihole/dnsmasq.d/99-pihole.conf with further server entries (as in 01-pihole.conf)
 - name: disable systemd-resolved
-  service:
+  ansible.builtin.service:
     name: systemd-resolved
     state: stopped
     enabled: no
   ignore_errors: true
 
 - name: enable fallback nameserver in resolv.conf
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/resolv.conf
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
@@ -35,7 +35,7 @@
     - { regexp: '^nameserver 1\.1\.1\.1', line: 'nameserver 1.1.1.1' }
 
 - name: PiHole-Container starten
-  docker_container:
+  community.general.docker_container:
     name: pihole
     image: pihole/pihole:latest
     state: started
@@ -67,16 +67,16 @@
     - container
 
 - name: waiting for pihole startup
-  pause:
+  ansible.builtin.pause:
     seconds: 40
   tags:
     - container
 
 - name: pihole | set pihole password
-  command: docker exec -ti pihole /usr/local/bin/pihole -a -p "{{ pihole_password }}"
+  ansible.builtin.command: docker exec -ti pihole /usr/local/bin/pihole -a -p "{{ pihole_password }}"
 
 - name: pihole configuration file
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ container_storage_dir_base }}/pihole/pihole/setupVars.conf"
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
@@ -85,7 +85,7 @@
     - { regexp: '^.*REV_SERVER=', line: 'REV_SERVER={{ pihole_rev_server | lower }}' }
 
 - name: pihole configuration file - cond forward
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ container_storage_dir_base }}/pihole/pihole/setupVars.conf"
     state: "{% if pihole_rev_server %}present{% else %}absent{% endif %}"
     regexp: "{{ item.regexp }}"
@@ -97,7 +97,7 @@
   when: pihole_rev_server | bool
 
 - name: pihole whitelist file
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ container_storage_dir_base }}/pihole/pihole/whitelist.txt"
     line: "{{ item }}"
     create: yes
@@ -106,7 +106,7 @@
      - "{{ pihole_whitelist_entries }}"
 
 - name: disable fallback nameserver in resolv.conf
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/resolv.conf
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
