@@ -10,5 +10,6 @@ pihole_rev_server_domain: fritz.box
 pihole_rev_server_cidr: "192.168.178.0/24"
 pihole_whitelist_entries: []
 
-# DOCKER_NETWORKS: []
-#   - name: "{{ DOCKER_NETWORK_NAME }}"
+pihole_published_ports:
+  - "53:53/tcp"
+  - "53:53/udp"

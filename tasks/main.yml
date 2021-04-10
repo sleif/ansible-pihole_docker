@@ -34,7 +34,7 @@
   with_items:
     - { regexp: '^nameserver 1\.1\.1\.1', line: 'nameserver 1.1.1.1' }
 
-- name: PiHole-Container starten
+- name: Pihole-Container starten
   community.general.docker_container:
     name: pihole
     image: pihole/pihole:latest
@@ -43,13 +43,11 @@
     recreate: yes
     restart: yes
     force_kill: yes
-    networks: "{{ DOCKER_NETWORKS | default(omit) }}"
+    networks:
+      - name: "{{ DOCKER_NETWORK_NAME }}"
     networks_cli_compatible: yes
     pull: yes
-    published_ports:
-      - '53:53/tcp'
-      - '53:53/udp'
-      - '{{ pihole_external_web_port | default(omit) }}'
+    published_ports: "{{ pihole_published_ports }}"
     volumes:
       - "{{ container_storage_dir_base }}/pihole/pihole/:/etc/pihole/:Z"
       - "{{ container_storage_dir_base }}/pihole/dnsmasq.d/:/etc/dnsmasq.d/:Z"
