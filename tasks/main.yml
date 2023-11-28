@@ -44,7 +44,7 @@
     restart: true
     force_kill: true
     networks:
-      - name: "{{ DOCKER_NETWORK_NAME }}"
+      - name: "{{ docker_network_name }}"
     networks_cli_compatible: true
     pull: true
     published_ports: "{{ pihole_published_ports }}"

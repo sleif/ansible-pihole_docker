@@ -11,7 +11,7 @@ Use it on a machine setup with ansible role sleif.docker.
 Role Variables
 --------------
 - container_storage_dir_base: '/srv'
-- DOCKER_NETWORK_NAME (can be defined in sleif.docker)
+- docker_network_name (can be defined in sleif.docker)
 - pihole_password
 - pihole_external_web_port
 
@@ -33,7 +33,7 @@ Example Playbook
     - hosts: "server"
       user: root
       vars:
-        DOCKER_NETWORK_NAME: 'custom_docker_network'
+        docker_network_name: 'custom_docker_network'
       roles:
         - { role: sleif.pihole_docker, tags: "pihole_docker", pihole_external_web_port: '8081:80/tcp' }
 
